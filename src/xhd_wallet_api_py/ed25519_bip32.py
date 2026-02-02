@@ -7,7 +7,9 @@ ffi.cdef('''
 typedef enum {
     Success = 0,
     InvalidRootKey = 1,
-    InvalidDerivationScheme = 2
+    InvalidDerivationScheme = 2,
+    InvalidLanguageCode = 3,
+    InvalidUtf8 = 4
 } ReturnCode;
 
 ReturnCode derive_path(
@@ -47,6 +49,21 @@ ReturnCode sign(
     uint8_t scheme,
     uint8_t *signature_out
 );
+
+void from_seed(
+    const uint8_t *seed,
+    uint8_t *root_xprv_out
+);
+
+ReturnCode seed_from_mnemonic(
+    const uint8_t *mnemonic,
+    size_t mnemonic_length,
+    uint8_t *seed_out,
+    const uint8_t *lang_code,
+    size_t lang_code_length,
+    const uint8_t *passphrase,
+    size_t passphrase_length
+);
 ''')
 
 _dykib_path = os.path.join(
@@ -58,6 +75,7 @@ lib = ffi.dlopen(_dykib_path)
 XPRV_SIZE = 96
 XPUB_SIZE = 64
 SIGNATURE_SIZE = 64
+SEED_SIZE = 64
 
 class DerivationScheme:
     V2 = 0
@@ -71,6 +89,8 @@ class ReturnCode:
     Success = 0
     InvalidRootKey = 1
     InvalidDerivationScheme = 2
+    InvalidLanguageCode = 3
+    InvalidUtf8 = 4
 
 def _check_return_code(code: int) -> None:
     if code == ReturnCode.Success:
@@ -79,6 +99,10 @@ def _check_return_code(code: int) -> None:
         raise ValueError("Invalid root key")
     elif code == ReturnCode.InvalidDerivationScheme:
         raise ValueError("Invalid derivation scheme")
+    elif code == ReturnCode.InvalidLanguageCode:
+        raise ValueError("Invalid language code or mnemonic")
+    elif code == ReturnCode.InvalidUtf8:
+        raise ValueError("Invalid UTF-8 encoding")
     else:
         raise RuntimeError(f"Unknown return code: {code}")
 
@@ -176,9 +200,46 @@ def sign(root_xprv: bytes, context: int, account: int, key_index: int, data: byt
     _check_return_code(return_code)
     return _buffer_to_bytes(signature_out, SIGNATURE_SIZE)
 
+def from_seed(seed: bytes) -> bytes:
+    if len(seed) != SEED_SIZE:
+        raise ValueError(f"seed must be {SEED_SIZE} bytes")
+    
+    seed_ptr = _to_u8_ptr(seed)
+    root_xprv_out = _allocate_buffer(XPRV_SIZE)
+    
+    lib.from_seed(seed_ptr, root_xprv_out)
+    
+    return _buffer_to_bytes(root_xprv_out, XPRV_SIZE)
+
+def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "") -> bytes:
+    mnemonic_bytes = mnemonic.encode('utf-8')
+    lang_code_bytes = lang_code.encode('utf-8')
+    passphrase_bytes = passphrase.encode('utf-8')
+    
+    mnemonic_ptr = _to_u8_ptr(mnemonic_bytes)
+    lang_code_ptr = _to_u8_ptr(lang_code_bytes)
+    passphrase_ptr = _to_u8_ptr(passphrase_bytes) if passphrase else ffi.NULL
+    passphrase_len = len(passphrase_bytes) if passphrase else 0
+    
+    seed_out = _allocate_buffer(SEED_SIZE)
+    
+    return_code = lib.seed_from_mnemonic(
+        mnemonic_ptr,
+        len(mnemonic_bytes),
+        seed_out,
+        lang_code_ptr,
+        len(lang_code_bytes),
+        passphrase_ptr,
+        passphrase_len
+    )
+    
+    _check_return_code(return_code)
+    return _buffer_to_bytes(seed_out, SEED_SIZE)
+
 __all__ = [
     'ffi', 'lib',
     'derive_path', 'key_gen', 'raw_sign', 'sign',
+    'from_seed', 'seed_from_mnemonic',
     'DerivationScheme', 'KeyContext', 'ReturnCode',
-    'XPRV_SIZE', 'XPUB_SIZE', 'SIGNATURE_SIZE'
+    'XPRV_SIZE', 'XPUB_SIZE', 'SIGNATURE_SIZE', 'SEED_SIZE'
 ]
