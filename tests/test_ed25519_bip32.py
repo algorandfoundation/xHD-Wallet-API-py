@@ -3,9 +3,12 @@ from xhd_wallet_api_py import (
     key_gen,
     raw_sign,
     sign,
+    from_seed,
+    seed_from_mnemonic,
     DerivationScheme,
     KeyContext,
     XPRV_SIZE,
+    SEED_SIZE,
 )
 
 VALID_ROOT_KEY = bytes.fromhex(
@@ -129,4 +132,64 @@ def test_sign_invalid_scheme():
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "Invalid derivation scheme" in str(e)
+
+MNEMONIC = "salon zoo engage submit smile frost later decide wing sight chaos renew lizard rely canal coral scene hobby scare step bus leaf tobacco slice"
+SEED_HEX = "3aff2db416b895ec3cf9a4f8d1e970bc9819920e7bf44a5e350477af0ef557b1511b0986debf78dd38c7c520cd44ff7c7231618f958e21ef0250733a8c1915ea"
+
+def test_seed_from_mnemonic_success():
+    seed = seed_from_mnemonic(MNEMONIC, "en")
+    assert len(seed) == SEED_SIZE
+    assert seed == bytes.fromhex(SEED_HEX)
+
+def test_seed_from_mnemonic_invalid_mnemonic():
+    try:
+        seed_from_mnemonic("invalid mnemonic words here", "en")
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Invalid language code or mnemonic" in str(e)
+
+def test_seed_from_mnemonic_invalid_language():
+    try:
+        seed_from_mnemonic(MNEMONIC, "invalid")
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Invalid language code or mnemonic" in str(e)
+
+def test_seed_from_mnemonic_with_passphrase():
+    seed = seed_from_mnemonic(MNEMONIC, "en", "my passphrase")
+    assert len(seed) == SEED_SIZE
+    assert seed != bytes.fromhex(SEED_HEX)
+
+def test_from_seed_success():
+    seed = bytes.fromhex(SEED_HEX)
+    root_xprv = from_seed(seed)
+    assert len(root_xprv) == XPRV_SIZE
+    assert root_xprv == bytes.fromhex(ROOT_KEY_HEX)
+
+def test_from_seed_invalid_size():
+    try:
+        from_seed(bytes(32))
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "seed must be 64 bytes" in str(e)
+
+def test_seed_to_xprv_roundtrip():
+    seed = seed_from_mnemonic(MNEMONIC, "en")
+    root_xprv = from_seed(seed)
+    assert len(root_xprv) == XPRV_SIZE
+    assert root_xprv == bytes.fromhex(ROOT_KEY_HEX)
+
+def test_derive_from_seed_generated_key():
+    seed = bytes.fromhex(SEED_HEX)
+    root_xprv = from_seed(seed)
+    derived = derive_path(root_xprv, BIP44_PATH, DerivationScheme.Peikert)
+    assert len(derived) == XPRV_SIZE
+    assert derived != root_xprv
+
+def test_sign_from_seed_generated_key():
+    seed = bytes.fromhex(SEED_HEX)
+    root_xprv = from_seed(seed)
+    data = b"Hello World"
+    signature = sign(root_xprv, KeyContext.Address, 0, 0, data, DerivationScheme.Peikert)
+    assert len(signature) == 64
 
