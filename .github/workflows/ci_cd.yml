@@ -133,6 +133,7 @@ jobs:
       - name: Build wheel
         env:
           RUN: |
+            git config --global --add safe.directory /workspace
             cd /workspace/
             uv build --wheel
         run: docker exec build-container bash -c "$RUN"
