@@ -74,11 +74,8 @@ class CustomBuildHook(BuildHookInterface):
                             repaired_path = os.path.join(tmp_dir, repaired_wheels[0])
                             artifact_dir = os.path.dirname(artifact)
                             final_path = os.path.join(artifact_dir, repaired_wheels[0])
-                            # Delete the original wheel
-                            os.remove(artifact)
-                            print(f"Removed original wheel: {artifact}")
-                            # Move the repaired wheel to the output directory
-                            shutil.move(repaired_path, final_path)
+                            # Copy the repaired wheel alongside the original
+                            shutil.copy2(repaired_path, final_path)
                             print(f"Created repaired wheel with auditwheel: {final_path}")
                     else:
                         print(f"auditwheel warning: {result.stderr}")
