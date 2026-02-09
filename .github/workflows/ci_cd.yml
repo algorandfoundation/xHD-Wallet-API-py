@@ -143,7 +143,7 @@ jobs:
           RUN: |
             cd /workspace/
             mkdir -p wheelhouse
-            mv dist/*manylinux*.whl wheelhouse/
+            mv dist/*linux*.whl wheelhouse/
         run: docker exec build-container bash -c "$RUN"
 
       - name: pytest
