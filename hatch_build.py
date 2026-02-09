@@ -54,3 +54,37 @@ class CustomBuildHook(BuildHookInterface):
         build_data["force_include"][dst_lib] = f"xhd_wallet_api_py/libed25519_bip32{lib_ext}"
         
         return super().initialize(version, build_data)
+    
+    def finalize(self, version, build_data, artifact):
+        # Run auditwheel repair on the built wheel (Linux only)
+        if artifact and platform.system() == "Linux":
+            try:
+                # Use auditwheel to repair the wheel for manylinux compatibility
+                import tempfile
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    result = subprocess.run(
+                        ["auditwheel", "repair", artifact, "--wheel-dir", tmp_dir],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        # Find the repaired wheel
+                        repaired_wheels = [f for f in os.listdir(tmp_dir) if f.endswith('.whl')]
+                        if repaired_wheels:
+                            repaired_path = os.path.join(tmp_dir, repaired_wheels[0])
+                            artifact_dir = os.path.dirname(artifact)
+                            final_path = os.path.join(artifact_dir, repaired_wheels[0])
+                            # Delete the original wheel
+                            os.remove(artifact)
+                            print(f"Removed original wheel: {artifact}")
+                            # Move the repaired wheel to the output directory
+                            shutil.move(repaired_path, final_path)
+                            print(f"Created repaired wheel with auditwheel: {final_path}")
+                    else:
+                        print(f"auditwheel warning: {result.stderr}")
+            except FileNotFoundError:
+                print("auditwheel not found. Install it with: pip install auditwheel")
+            except Exception as e:
+                print(f"auditwheel repair failed: {e}")
+        
+        return super().finalize(version, build_data, artifact)
