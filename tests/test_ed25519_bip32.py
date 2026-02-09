@@ -5,10 +5,12 @@ from xhd_wallet_api_py import (
     sign,
     from_seed,
     seed_from_mnemonic,
+    public_key,
     DerivationScheme,
     KeyContext,
     XPRV_SIZE,
     SEED_SIZE,
+    PUBLIC_KEY_SIZE,
 )
 
 VALID_ROOT_KEY = bytes.fromhex(
@@ -192,4 +194,29 @@ def test_sign_from_seed_generated_key():
     data = b"Hello World"
     signature = sign(root_xprv, KeyContext.Address, 0, 0, data, DerivationScheme.Peikert)
     assert len(signature) == 64
+
+def test_verify_signature_with_pynacl():
+    """Verify that signatures created by the library can be verified with pynacl using the extracted public key.
+    
+    Note: raw_sign is used here because it signs directly with the root key, so the public key
+    extracted from the root key will match the signing key.
+    """
+    from nacl.signing import VerifyKey
+    
+    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    data = b"Hello World"
+    
+    # Sign with raw_sign (direct signing with root key via BIP44 path)
+    signature = raw_sign(root_key, BIP44_PATH, data, DerivationScheme.Peikert)
+    
+    # Derive the key to get the corresponding public key
+    derived_xprv = derive_path(root_key, BIP44_PATH, DerivationScheme.Peikert)
+    pub_key = public_key(derived_xprv)
+    
+    # Use pynacl to verify the signature
+    verify_key = VerifyKey(pub_key)
+    try:
+        verify_key.verify(data, signature)
+    except Exception as e:
+        assert False, f"Signature verification failed: {e}"
 

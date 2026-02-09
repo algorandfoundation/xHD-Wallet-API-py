@@ -66,6 +66,11 @@ ReturnCode seed_from_mnemonic(
     const uint8_t *passphrase,
     size_t passphrase_length
 );
+
+ReturnCode public_key(
+    const uint8_t *xprv,
+    uint8_t *public_key_out
+);
 ''')
 
 # Determine library extension based on platform
@@ -90,6 +95,7 @@ XPRV_SIZE = 96
 XPUB_SIZE = 64
 SIGNATURE_SIZE = 64
 SEED_SIZE = 64
+PUBLIC_KEY_SIZE = 32
 
 class DerivationScheme:
     V2 = 0
@@ -253,10 +259,22 @@ def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "
     _check_return_code(return_code)
     return _buffer_to_bytes(seed_out, SEED_SIZE)
 
+def public_key(xprv: bytes) -> bytes:
+    if len(xprv) != XPRV_SIZE:
+        raise ValueError(f"xprv must be {XPRV_SIZE} bytes")
+    
+    xprv_ptr = _to_u8_ptr(xprv)
+    public_key_out = _allocate_buffer(PUBLIC_KEY_SIZE)
+    
+    return_code = lib.public_key(xprv_ptr, public_key_out)
+    
+    _check_return_code(return_code)
+    return _buffer_to_bytes(public_key_out, PUBLIC_KEY_SIZE)
+
 __all__ = [
     'ffi', 'lib',
     'derive_path', 'key_gen', 'raw_sign', 'sign',
-    'from_seed', 'seed_from_mnemonic',
+    'from_seed', 'seed_from_mnemonic', 'public_key',
     'DerivationScheme', 'KeyContext', 'ReturnCode',
-    'XPRV_SIZE', 'XPUB_SIZE', 'SIGNATURE_SIZE', 'SEED_SIZE'
+    'XPRV_SIZE', 'XPUB_SIZE', 'SIGNATURE_SIZE', 'SEED_SIZE', 'PUBLIC_KEY_SIZE'
 ]

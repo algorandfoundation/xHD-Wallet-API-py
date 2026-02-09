@@ -27,4 +27,5 @@ dev = [
     "auditwheel>=6.6.0",
     "mypy>=1.19.1",
     "pytest>=9.0.2",
+    "pynacl>=1.5.0",
 ]

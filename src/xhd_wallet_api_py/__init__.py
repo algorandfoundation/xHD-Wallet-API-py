@@ -7,6 +7,7 @@ from .ed25519_bip32 import (
     sign,
     from_seed,
     seed_from_mnemonic,
+    public_key,
     DerivationScheme,
     KeyContext,
     ReturnCode,
@@ -14,6 +15,7 @@ from .ed25519_bip32 import (
     XPUB_SIZE,
     SIGNATURE_SIZE,
     SEED_SIZE,
+    PUBLIC_KEY_SIZE,
 )
 
 
@@ -26,6 +28,7 @@ __all__ = [
     'sign',
     'from_seed',
     'seed_from_mnemonic',
+    'public_key',
     'DerivationScheme',
     'KeyContext',
     'ReturnCode',
@@ -33,4 +36,5 @@ __all__ = [
     'XPUB_SIZE',
     'SIGNATURE_SIZE',
     'SEED_SIZE',
+    'PUBLIC_KEY_SIZE',
 ]
