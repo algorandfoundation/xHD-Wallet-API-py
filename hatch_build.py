@@ -19,7 +19,7 @@ class CustomBuildHook(BuildHookInterface):
         system = platform.system()
         if system != "Linux":
             machine = platform.machine()
-            
+
             if system == "Windows":
                 # Windows platform tags
                 if machine == "ARM64":
@@ -49,7 +49,6 @@ class CustomBuildHook(BuildHookInterface):
         )
         
         # Determine library extension and prefix based on platform
-        system = platform.system()
         if system == "Darwin":
             lib_ext = ".dylib"
             lib_prefix = "lib"
