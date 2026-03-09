@@ -4,15 +4,37 @@ import shutil
 import platform
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface  # type: ignore
 
+
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version, build_data):
         project_root = self.root
         rust_dir = os.path.join(project_root, "rust-ed25519-bip32")
         package_dir = os.path.join(project_root, "src", "xhd_wallet_api_py")
-        
+
         # Ensure package directory exists
         os.makedirs(package_dir, exist_ok=True)
-       
+
+        # Set platform-specific wheel tag for non-Linux platforms
+        # Linux wheels are handled by auditwheel repair in finalize()
+        system = platform.system()
+        if system != "Linux":
+            machine = platform.machine()
+            
+            if system == "Windows":
+                # Windows platform tags
+                if machine == "ARM64":
+                    build_data["tag"] = "py3-none-win_arm64"
+                else:
+                    build_data["tag"] = "py3-none-win_amd64"
+            elif system == "Darwin":
+                # macOS platform tags
+                if machine == "arm64":
+                    # macOS 11.0+ for Apple Silicon
+                    build_data["tag"] = "py3-none-macosx_11_0_arm64"
+                else:
+                    # macOS 10.9+ for Intel (minimum for pip/PyPI)
+                    build_data["tag"] = "py3-none-macosx_10_9_x86_64"
+
         subprocess.run(
             ["git", "submodule", "update", "--init", "--recursive"],
             cwd=project_root,
