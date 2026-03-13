@@ -13,7 +13,7 @@ from xhd_wallet_api_py import (
     PUBLIC_KEY_SIZE,
 )
 
-VALID_ROOT_KEY = bytes.fromhex(
+VALID_ROOT_KEY = bytearray.fromhex(
     "f8a29231ee38d6c5bf715d5bac21c750577aa3798b22d79d65bf97d6fade"
     "a15adcd1ee1abdf78bd4be64731a12deb94d3671784112eb6f364b871851"
     "fd1c9a247384db9ad6003bbd08b3b1ddc0d07a597293ff85e961bf252b33"
@@ -34,7 +34,7 @@ def test_derive_path_success():
     assert derived != VALID_ROOT_KEY
 
 def test_derive_path_invalid_root_key():
-    invalid_root_key = bytes(XPRV_SIZE)
+    invalid_root_key = bytearray(XPRV_SIZE)
     try:
         derive_path(invalid_root_key, BIP44_PATH, DerivationScheme.Peikert)
         assert False, "Should have raised ValueError"
@@ -57,7 +57,7 @@ def test_key_gen_identity():
     assert len(derived) == XPRV_SIZE
 
 def test_key_gen_invalid_root_key():
-    invalid_root_key = bytes(XPRV_SIZE)
+    invalid_root_key = bytearray(XPRV_SIZE)
     try:
         key_gen(invalid_root_key, KeyContext.Address, 0, 0, DerivationScheme.Peikert)
         assert False, "Should have raised ValueError"
@@ -79,13 +79,13 @@ def test_key_gen_invalid_scheme():
         assert "Invalid derivation scheme" in str(e)
 
 def test_raw_sign():
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     signature = raw_sign(root_key, BIP44_PATH, data, DerivationScheme.Peikert)
     assert len(signature) == 64
 
 def test_raw_sign_invalid_root_key():
-    invalid_root_key = bytes(XPRV_SIZE)
+    invalid_root_key = bytearray(XPRV_SIZE)
     data = b"Hello World"
     try:
         raw_sign(invalid_root_key, BIP44_PATH, data, DerivationScheme.Peikert)
@@ -94,7 +94,7 @@ def test_raw_sign_invalid_root_key():
         assert "Invalid root key" in str(e)
 
 def test_raw_sign_invalid_scheme():
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     try:
         raw_sign(root_key, BIP44_PATH, data, 99)
@@ -103,13 +103,13 @@ def test_raw_sign_invalid_scheme():
         assert "Invalid derivation scheme" in str(e)
 
 def test_sign():
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     signature = sign(root_key, KeyContext.Address, 0, 0, data, DerivationScheme.Peikert)
     assert len(signature) == 64
 
 def test_sign_invalid_root_key():
-    invalid_root_key = bytes(XPRV_SIZE)
+    invalid_root_key = bytearray(XPRV_SIZE)
     data = b"Hello World"
     try:
         sign(invalid_root_key, KeyContext.Address, 0, 0, data, DerivationScheme.Peikert)
@@ -118,7 +118,7 @@ def test_sign_invalid_root_key():
         assert "Invalid root key" in str(e)
 
 def test_sign_invalid_context():
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     try:
         sign(root_key, 99, 0, 0, data, DerivationScheme.Peikert)
@@ -127,7 +127,7 @@ def test_sign_invalid_context():
         assert "Invalid derivation scheme" in str(e)
 
 def test_sign_invalid_scheme():
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     try:
         sign(root_key, KeyContext.Address, 0, 0, data, 99)
@@ -163,14 +163,14 @@ def test_seed_from_mnemonic_with_passphrase():
     assert seed != bytes.fromhex(SEED_HEX)
 
 def test_from_seed_success():
-    seed = bytes.fromhex(SEED_HEX)
+    seed = bytearray.fromhex(SEED_HEX)
     root_xprv = from_seed(seed)
     assert len(root_xprv) == XPRV_SIZE
     assert root_xprv == bytes.fromhex(ROOT_KEY_HEX)
 
 def test_from_seed_invalid_size():
     try:
-        from_seed(bytes(32))
+        from_seed(bytearray(32))
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "seed must be 64 bytes" in str(e)
@@ -182,14 +182,14 @@ def test_seed_to_xprv_roundtrip():
     assert root_xprv == bytes.fromhex(ROOT_KEY_HEX)
 
 def test_derive_from_seed_generated_key():
-    seed = bytes.fromhex(SEED_HEX)
+    seed = bytearray.fromhex(SEED_HEX)
     root_xprv = from_seed(seed)
     derived = derive_path(root_xprv, BIP44_PATH, DerivationScheme.Peikert)
     assert len(derived) == XPRV_SIZE
     assert derived != root_xprv
 
 def test_sign_from_seed_generated_key():
-    seed = bytes.fromhex(SEED_HEX)
+    seed = bytearray.fromhex(SEED_HEX)
     root_xprv = from_seed(seed)
     data = b"Hello World"
     signature = sign(root_xprv, KeyContext.Address, 0, 0, data, DerivationScheme.Peikert)
@@ -203,7 +203,7 @@ def test_verify_signature_with_pynacl():
     """
     from nacl.signing import VerifyKey
     
-    root_key = bytes.fromhex(ROOT_KEY_HEX)
+    root_key = bytearray.fromhex(ROOT_KEY_HEX)
     data = b"Hello World"
     
     # Sign with raw_sign (direct signing with root key via BIP44 path)

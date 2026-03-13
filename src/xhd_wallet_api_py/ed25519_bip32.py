@@ -129,7 +129,7 @@ def _check_return_code(code: int) -> None:
     else:
         raise RuntimeError(f"Unknown return code: {code}")
 
-def _to_u8_ptr(data: bytes) -> Any:
+def _to_u8_ptr(data: bytearray) -> Any:
     return ffi.from_buffer(data)
 
 def _to_u32_array(path: list[int]) -> Any:
@@ -138,10 +138,10 @@ def _to_u32_array(path: list[int]) -> Any:
 def _allocate_buffer(size: int) -> Any:
     return ffi.new(f"uint8_t[{size}]")
 
-def _buffer_to_bytes(buffer: Any, size: int) -> bytes:
-    return bytes(ffi.buffer(buffer, size))
+def _buffer_to_bytes(buffer: Any, size: int) -> bytearray:
+    return bytearray(ffi.buffer(buffer, size))
 
-def derive_path(root_xprv: bytes, path: list[int], scheme: int) -> bytes:
+def derive_path(root_xprv: bytearray, path: list[int], scheme: int) -> bytearray:
     if len(root_xprv) != XPRV_SIZE:
         raise ValueError(f"root_xprv must be {XPRV_SIZE} bytes")
     
@@ -149,7 +149,7 @@ def derive_path(root_xprv: bytes, path: list[int], scheme: int) -> bytes:
     path_ptr = _to_u32_array(path)
     derived_xprv_out = _allocate_buffer(XPRV_SIZE)
    
-    return_code = lib.derive_path(
+    return_code = lib.derive_path( # type: ignore
         root_xprv_ptr,
         path_ptr,
         len(path),
@@ -160,14 +160,14 @@ def derive_path(root_xprv: bytes, path: list[int], scheme: int) -> bytes:
     _check_return_code(return_code)
     return _buffer_to_bytes(derived_xprv_out, XPRV_SIZE)
 
-def key_gen(root_xprv: bytes, context: int, account: int, key_index: int, scheme: int) -> bytes:
+def key_gen(root_xprv: bytearray, context: int, account: int, key_index: int, scheme: int) -> bytearray:
     if len(root_xprv) != XPRV_SIZE:
         raise ValueError(f"root_xprv must be {XPRV_SIZE} bytes")
     
     root_xprv_ptr = _to_u8_ptr(root_xprv)
     derived_xprv_out = _allocate_buffer(XPRV_SIZE)
     
-    return_code = lib.key_gen(
+    return_code = lib.key_gen( # type: ignore
         root_xprv_ptr,
         context,
         account,
@@ -179,16 +179,16 @@ def key_gen(root_xprv: bytes, context: int, account: int, key_index: int, scheme
     _check_return_code(return_code)
     return _buffer_to_bytes(derived_xprv_out, XPRV_SIZE)
 
-def raw_sign(root_xprv: bytes, bip44_path: list[int], data: bytes, scheme: int) -> bytes:
+def raw_sign(root_xprv: bytearray, bip44_path: list[int], data: bytes, scheme: int) -> bytes:
     if len(root_xprv) != XPRV_SIZE:
         raise ValueError(f"root_xprv must be {XPRV_SIZE} bytes")
     
     root_xprv_ptr = _to_u8_ptr(root_xprv)
     path_ptr = _to_u32_array(bip44_path)
-    data_ptr = _to_u8_ptr(data)
+    data_ptr = _to_u8_ptr(bytearray(data))
     signature_out = _allocate_buffer(SIGNATURE_SIZE)
     
-    return_code = lib.raw_sign(
+    return_code = lib.raw_sign( # type: ignore
         root_xprv_ptr,
         path_ptr,
         len(bip44_path),
@@ -199,17 +199,17 @@ def raw_sign(root_xprv: bytes, bip44_path: list[int], data: bytes, scheme: int) 
     )
     
     _check_return_code(return_code)
-    return _buffer_to_bytes(signature_out, SIGNATURE_SIZE)
+    return bytes(_buffer_to_bytes(signature_out, SIGNATURE_SIZE))
 
-def sign(root_xprv: bytes, context: int, account: int, key_index: int, data: bytes, scheme: int) -> bytes:
+def sign(root_xprv: bytearray, context: int, account: int, key_index: int, data: bytes, scheme: int) -> bytes:
     if len(root_xprv) != XPRV_SIZE:
         raise ValueError(f"root_xprv must be {XPRV_SIZE} bytes")
     
     root_xprv_ptr = _to_u8_ptr(root_xprv)
-    data_ptr = _to_u8_ptr(data)
+    data_ptr = _to_u8_ptr(bytearray(data))
     signature_out = _allocate_buffer(SIGNATURE_SIZE)
     
-    return_code = lib.sign(
+    return_code = lib.sign( # type: ignore
         root_xprv_ptr,
         context,
         account,
@@ -221,23 +221,23 @@ def sign(root_xprv: bytes, context: int, account: int, key_index: int, data: byt
     )
     
     _check_return_code(return_code)
-    return _buffer_to_bytes(signature_out, SIGNATURE_SIZE)
+    return bytes(_buffer_to_bytes(signature_out, SIGNATURE_SIZE))
 
-def from_seed(seed: bytes) -> bytes:
+def from_seed(seed: bytearray) -> bytearray:
     if len(seed) != SEED_SIZE:
         raise ValueError(f"seed must be {SEED_SIZE} bytes")
     
     seed_ptr = _to_u8_ptr(seed)
     root_xprv_out = _allocate_buffer(XPRV_SIZE)
     
-    lib.from_seed(seed_ptr, root_xprv_out)
+    lib.from_seed(seed_ptr, root_xprv_out) # type: ignore
     
     return _buffer_to_bytes(root_xprv_out, XPRV_SIZE)
 
-def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "") -> bytes:
-    mnemonic_bytes = mnemonic.encode('utf-8')
-    lang_code_bytes = lang_code.encode('utf-8')
-    passphrase_bytes = passphrase.encode('utf-8')
+def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "") -> bytearray:
+    mnemonic_bytes = bytearray(mnemonic.encode('utf-8'))
+    lang_code_bytes = bytearray(lang_code.encode('utf-8'))
+    passphrase_bytes = bytearray(passphrase.encode('utf-8'))
     
     mnemonic_ptr = _to_u8_ptr(mnemonic_bytes)
     lang_code_ptr = _to_u8_ptr(lang_code_bytes)
@@ -246,7 +246,7 @@ def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "
     
     seed_out = _allocate_buffer(SEED_SIZE)
     
-    return_code = lib.seed_from_mnemonic(
+    return_code = lib.seed_from_mnemonic( # type: ignore
         mnemonic_ptr,
         len(mnemonic_bytes),
         seed_out,
@@ -259,17 +259,17 @@ def seed_from_mnemonic(mnemonic: str, lang_code: str = "en", passphrase: str = "
     _check_return_code(return_code)
     return _buffer_to_bytes(seed_out, SEED_SIZE)
 
-def public_key(xprv: bytes) -> bytes:
+def public_key(xprv: bytearray) -> bytes:
     if len(xprv) != XPRV_SIZE:
         raise ValueError(f"xprv must be {XPRV_SIZE} bytes")
     
     xprv_ptr = _to_u8_ptr(xprv)
     public_key_out = _allocate_buffer(PUBLIC_KEY_SIZE)
     
-    return_code = lib.public_key(xprv_ptr, public_key_out)
+    return_code = lib.public_key(xprv_ptr, public_key_out) # type: ignore
     
     _check_return_code(return_code)
-    return _buffer_to_bytes(public_key_out, PUBLIC_KEY_SIZE)
+    return bytes(_buffer_to_bytes(public_key_out, PUBLIC_KEY_SIZE))
 
 __all__ = [
     'ffi', 'lib',
