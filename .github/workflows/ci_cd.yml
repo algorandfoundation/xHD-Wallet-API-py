@@ -8,8 +8,7 @@ on:
     branches:
       - main
 
-permissions:
-  actions: write # to upload artifacts
+permissions: {}
 
 env:
   # Python >= 3.8 is needed to support manylinux_x_y tags (unless you want to manually update pip)
@@ -17,11 +16,70 @@ env:
   PYTHON_VERSION: "3.10"
 
 jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write # to create releases
+    outputs:
+      released: ${{ steps.semantic-release.outputs.released }}
+      version: ${{ steps.semantic-release.outputs.version }}
+      tag: ${{ steps.semantic-release.outputs.tag }}
+    steps:
+      - name: Generate bot token
+        uses: actions/create-github-app-token@v1
+        id: app_token
+        with:
+          app-id: ${{ secrets.BOT_ID }}
+          private-key: ${{ secrets.BOT_SK }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pipx install uv
+
+      - name: Install dependencies
+        run: uv sync --only-dev
+
+      - name: Run semantic-release
+        id: semantic-release
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          # echo "version=$(uv run semantic-release version --print)" >> $GITHUB_OUTPUT
+          # echo "tag=v$(uv run semantic-release version --print)" >> $GITHUB_OUTPUT
+          # uv run semantic-release version
+          # echo "released=true" >> $GITHUB_OUTPUT
+          NEXT=$(uv run semantic-release version --print)
+          LAST=$(uv run semantic-release version --print-last-released)
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "tag=v$NEXT" >> $GITHUB_OUTPUT
+          if [ "$NEXT" != "$LAST" ]; then
+            uv run semantic-release version
+            echo "released=true" >> $GITHUB_OUTPUT
+          else
+            echo "released=false" >> $GITHUB_OUTPUT
+          fi
+ 
+
   build_and_test:
     defaults:
       run:
         shell: bash
     runs-on: ${{ matrix.target.runner }}
+    needs: release
+    if: always() && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    permissions:
+      actions: write # to upload artifacts
     strategy:
       matrix:
         target:
@@ -38,7 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.release.outputs.released == 'true' && needs.release.outputs.tag || github.ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.85.0
@@ -76,6 +134,10 @@ jobs:
       run:
         shell: bash
     runs-on: ubuntu-22.04${{ matrix.arch == 'aarch64' && '-arm' || '' }}
+    needs: release
+    if: always() && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    permissions:
+      actions: write # to upload artifacts
     strategy:
       matrix:
         # i686, ppc64le, s390x are also supported but not running them for now to reduce CI time
@@ -102,7 +164,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.release.outputs.released == 'true' && needs.release.outputs.tag || github.ref }}
 
       - name: Set up QEMU
         if: matrix.arch != 'aarch64' && matrix.arch != 'x86_64'
@@ -174,3 +236,42 @@ jobs:
           path: wheelhouse/*.whl
           compression-level: 0
           if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI and Create GitHub Release
+    needs: [release, build_and_test, linux_build_and_test]
+    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write  # Required for OIDC trusted publishing
+      contents: write  # Required to create GitHub releases
+    
+    steps:
+      - name: Generate bot token
+        uses: actions/create-github-app-token@v1
+        id: app_token
+        with:
+          app-id: ${{ secrets.BOT_ID }}
+          private-key: ${{ secrets.BOT_SK }}
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      - name: Upload artifacts to existing release
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          gh release upload ${{ needs.release.outputs.tag }} dist/*.whl --clobber
