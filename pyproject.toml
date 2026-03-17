@@ -1,6 +1,6 @@
 [project]
-name = "test-xhd-wallet-api"
-version = "1.15.0"
+name = "xhd-wallet-api"
+version = "0.1.0"
 description = "BIP32-ed25519 library that supports Khovratovich derivation and Peikert derivation"
 authors = [
   { name = "Algorand Foundation", email = "contact@algorand.foundation" },
